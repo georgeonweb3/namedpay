@@ -36,6 +36,7 @@ The deployer is the contract owner and can do exactly one thing: pause/unpause n
 - **Audit fixes:** commit `b80bf2a` (Nov 21) — F1 freezes the escrow owner at creation so a payout rotation or name sale after creation changes neither who may confirm nor who gets paid; F2 strips one trailing `.ai` (case-insensitive) in `payByName` / `resolveName` / `escrowByName`.
 - **BSC testnet:** deployed Nov 18 at `0x644077780140F7E477cb8ecb6a69f4768DB91E4e` (BSC testnet, chain 97); full flow verified on testnet. See `BUILD-REPORT.md`.
 - **Local-chain end-to-end:** deploy script + full flow validated on Anvil (register → pay → escrow → confirm → refund → timeout-refund, all txs confirmed). See `BUILD-REPORT.md`.
+- **Claim page:** `claim.html` — minimal claim page, live at https://georgeonweb3.github.io/namedpay/claim.html (GitHub Pages, same pattern as the Aegis demo). Mint a test name, claim it as payable, pay by name, escrow by name, all on BSC testnet. Live event feed reads through PublicNode, verified Nov 21. Taste audit PASS, recorded in the page header. Humanizer plus unslop pass 2026-11-21.
 - **BSC mainnet:** not deployed yet. Window Nov 21–22. Mainnet must deploy commit `b80bf2a` or later. Measured deploy gas: **2,021,183** (actual) — ~**$0.06 at 0.05 gwei** (BNB $589.81); fits the deploy wallet up to ~0.4 gwei (conservative) / ~0.5 gwei (measured).
 
 ## Deploy
