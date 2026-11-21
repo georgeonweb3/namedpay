@@ -32,10 +32,11 @@ The deployer is the contract owner and can do exactly one thing: pause/unpause n
 ## Status
 
 - **Contract:** `src/NamedPay.sol` (Solidity 0.8.36, no external dependencies)
-- **Tests:** 33 unit tests pass (24 original + 9 regression tests for the F1/F2 audit fixes); 3 fork tests pass against the **real** Agent ID contract on BSC mainnet (`resolveName("georgeonweb3")` returns the owner's wallet; case-insensitive; nonexistent name reverts). Run: `forge test`, and `BSC_RPC_URL=https://bsc-dataseed.binance.org forge test --match-contract NamedPayForkTest`
+- **Tests:** 33/33 unit tests pass (24 original + 9 regression tests for the F1/F2 audit fixes); 3/3 fork tests pass against the **real** Agent ID contract on BSC mainnet (`resolveName("georgeonweb3")` returns the owner's wallet; case-insensitive; nonexistent name reverts). Run: `forge test`, and `BSC_RPC_URL=https://bsc-dataseed.binance.org forge test --match-contract NamedPayForkTest`
+- **Audit fixes:** commit `b80bf2a` (Nov 21) — F1 freezes the escrow owner at creation so a payout rotation or name sale after creation changes neither who may confirm nor who gets paid; F2 strips one trailing `.ai` (case-insensitive) in `payByName` / `resolveName` / `escrowByName`.
+- **BSC testnet:** deployed Nov 18 at `0x644077780140F7E477cb8ecb6a69f4768DB91E4e` (BSC testnet, chain 97); full flow verified on testnet. See `BUILD-REPORT.md`.
 - **Local-chain end-to-end:** deploy script + full flow validated on Anvil (register → pay → escrow → confirm → refund → timeout-refund, all txs confirmed). See `BUILD-REPORT.md`.
-- **BSC testnet:** deployment **blocked** — every public testnet-BNB faucet needs something this build cannot do unattended (official faucet: hCaptcha; Chainstack: API key; QuickNode: X post). No testnet address yet; the deploy script is ready for the moment a faucet drip lands. See `BUILD-REPORT.md`.
-- **BSC mainnet:** not deployed yet. Window Nov 21–22. Measured deploy gas: **2,021,183** (actual) — ~**$0.06 at 0.05 gwei** (BNB $589.81); fits the deploy wallet up to ~0.4 gwei (conservative) / ~0.5 gwei (measured).
+- **BSC mainnet:** not deployed yet. Window Nov 21–22. Mainnet must deploy commit `b80bf2a` or later. Measured deploy gas: **2,021,183** (actual) — ~**$0.06 at 0.05 gwei** (BNB $589.81); fits the deploy wallet up to ~0.4 gwei (conservative) / ~0.5 gwei (measured).
 
 ## Deploy
 
