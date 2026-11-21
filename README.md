@@ -14,12 +14,12 @@ No 0x, no copy-paste. The BscScan input data is a human name.
 | `resolveName(label)` (view) | Returns the payout address (registered payout, else the name owner wallet). Reverts if the name does not exist — paying a nonexistent name fails loudly, by design. |
 | `payByName(label)` (payable) | Forwards exactly `msg.value` BNB to the payout address. Emits `PaidByName`. |
 | `escrowByName(label)` (payable) | Locks BNB for a named agent. Emits `EscrowCreated`. |
-| `confirmDelivery(escrowId)` | The name owner confirms delivery; the escrowed BNB is released to the payout address. Emits `EscrowReleased`. |
+| `confirmDelivery(escrowId)` | The name owner **at escrow creation** confirms delivery; the escrowed BNB is released to the payout address recorded at creation. A payout rotation or name sale after creation does not change who may confirm or who gets paid. Emits `EscrowReleased`. |
 | `refund(escrowId)` | The payer refunds an unreleased escrow to themselves, any time before confirmation. Emits `EscrowRefunded`. |
 | `timeoutRefund(escrowId)` | After the 7-day deadline, anyone may trigger the refund back to the payer. Emits `EscrowRefunded`. |
 | `pause()` / `unpause()` | Owner-only emergency pause on **new** registrations, payments and escrows. Fund release (`confirmDelivery` / `refund` / `timeoutRefund`) is **never** blocked by a pause. |
 
-Labels are case-insensitive on-chain (`Alice` and `alice` resolve to the same name). No fee on payments in v1.
+Labels are case-insensitive on-chain (`Alice` and `alice` resolve to the same name), and a trailing `.ai` is stripped (`alice.ai` resolves to `alice`). No fee on payments in v1.
 
 ## Owner permissions (disclosed)
 
@@ -32,7 +32,7 @@ The deployer is the contract owner and can do exactly one thing: pause/unpause n
 ## Status
 
 - **Contract:** `src/NamedPay.sol` (Solidity 0.8.36, no external dependencies)
-- **Tests:** 24 unit tests pass; 3 fork tests pass against the **real** Agent ID contract on BSC mainnet (`resolveName("georgeonweb3")` returns the owner's wallet; case-insensitive; nonexistent name reverts). Run: `forge test`, and `BSC_RPC_URL=https://bsc-dataseed.binance.org forge test --match-contract NamedPayForkTest`
+- **Tests:** 33 unit tests pass (24 original + 9 regression tests for the F1/F2 audit fixes); 3 fork tests pass against the **real** Agent ID contract on BSC mainnet (`resolveName("georgeonweb3")` returns the owner's wallet; case-insensitive; nonexistent name reverts). Run: `forge test`, and `BSC_RPC_URL=https://bsc-dataseed.binance.org forge test --match-contract NamedPayForkTest`
 - **Local-chain end-to-end:** deploy script + full flow validated on Anvil (register → pay → escrow → confirm → refund → timeout-refund, all txs confirmed). See `BUILD-REPORT.md`.
 - **BSC testnet:** deployment **blocked** — every public testnet-BNB faucet needs something this build cannot do unattended (official faucet: hCaptcha; Chainstack: API key; QuickNode: X post). No testnet address yet; the deploy script is ready for the moment a faucet drip lands. See `BUILD-REPORT.md`.
 - **BSC mainnet:** not deployed yet. Window Nov 21–22. Measured deploy gas: **2,021,183** (actual) — ~**$0.06 at 0.05 gwei** (BNB $589.81); fits the deploy wallet up to ~0.4 gwei (conservative) / ~0.5 gwei (measured).

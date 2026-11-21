@@ -23,6 +23,15 @@ contract MockAgentID {
         return o;
     }
 
+    /// @notice Test-only: move a name to a new owner (the real Agent ID
+    /// contract allows transfers). Used to prove escrow behaviour after a
+    /// name sale.
+    function transfer(string memory label, address newOwner) external {
+        uint256 tokenId = uint256(keccak256(bytes(_lower(label))));
+        require(_owners[tokenId] != address(0), "not minted");
+        _owners[tokenId] = newOwner;
+    }
+
     function _lower(string memory label) internal pure returns (string memory) {
         bytes memory b = bytes(label);
         for (uint256 i = 0; i < b.length; i++) {

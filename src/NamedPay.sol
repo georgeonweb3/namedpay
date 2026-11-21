@@ -71,6 +71,13 @@ contract NamedPay {
         bytes32 labelHash;
         address payer;
         address payee;
+        /// @notice Name owner at escrow creation. Release authority follows
+        /// this frozen owner, not the live name owner: a payout rotation or
+        /// a name sale after creation does not change who may confirm, and
+        /// the payee recorded at creation is the one who gets paid. The
+        /// owner can ask the payer to refund and re-escrow if they want the
+        /// new payout / new owner to take over.
+        address owner;
         uint256 amount;
         uint256 deadline;
         bool released;
@@ -98,6 +105,11 @@ contract NamedPay {
 
     /// @notice Agent ID labels are lowercase (SPACE ID convention). Normalise
     /// A-Z to a-z so "Alice.ai" and "alice.ai" resolve to the same name.
+    /// Also strips one trailing ".ai" (case-insensitive) so paying by the
+    /// full ".ai" name resolves: "alice.ai" -> "alice". Only one suffix is
+    /// stripped ("alice.ai.ai" does not resolve), and a label that is just
+    /// ".ai" reverts EmptyLabel. Safe: SPACE ID labels cannot contain dots,
+    /// so no real label ends in ".ai".
     function _normalize(string memory label) internal pure returns (string memory) {
         bytes memory b = bytes(label);
         if (b.length == 0) revert EmptyLabel();
@@ -107,6 +119,19 @@ contract NamedPay {
             if (c >= 0x41 && c <= 0x5A) {
                 b[i] = bytes1(uint8(c) + 32);
             }
+        }
+        if (
+            b.length >= 3 &&
+            b[b.length - 3] == 0x2e && // "."
+            b[b.length - 2] == 0x61 && // "a"
+            b[b.length - 1] == 0x69 // "i"
+        ) {
+            bytes memory stripped = new bytes(b.length - 3);
+            for (uint256 j = 0; j < stripped.length; j++) {
+                stripped[j] = b[j];
+            }
+            if (stripped.length == 0) revert EmptyLabel();
+            return string(stripped);
         }
         return string(b);
     }
@@ -127,12 +152,12 @@ contract NamedPay {
         return o;
     }
 
-    /// @notice Resolve a label to (labelHash, payout address).
-    function _resolve(string memory label) internal view returns (bytes32, address) {
+    /// @notice Resolve a label to (labelHash, name owner, payout address).
+    function _resolve(string memory label) internal view returns (bytes32, address, address) {
         bytes32 lh = _labelHash(label);
         address o = _ownerOfHash(lh);
         address payout = payoutOf[lh];
-        return (lh, payout == address(0) ? o : payout);
+        return (lh, o, payout == address(0) ? o : payout);
     }
 
     // --- registration ---
@@ -152,7 +177,7 @@ contract NamedPay {
     /// name owner wallet). Reverts if the name does not exist. Composable view
     /// for other contracts routing payments by name — not a lookup.
     function resolveName(string memory label) public view returns (address) {
-        (, address payee) = _resolve(label);
+        (, , address payee) = _resolve(label);
         return payee;
     }
 
@@ -164,7 +189,7 @@ contract NamedPay {
     function payByName(string memory label) external payable nonReentrant {
         if (paused) revert ContractPaused();
         if (msg.value == 0) revert ZeroPayment();
-        (bytes32 lh, address payee) = _resolve(label);
+        (bytes32 lh, , address payee) = _resolve(label);
         (bool ok,) = payee.call{value: msg.value}("");
         if (!ok) revert PaymentFailed(payee);
         emit PaidByName(lh, label, msg.sender, payee, msg.value);
@@ -178,13 +203,14 @@ contract NamedPay {
     function escrowByName(string memory label) external payable nonReentrant returns (uint256 escrowId) {
         if (paused) revert ContractPaused();
         if (msg.value == 0) revert ZeroPayment();
-        (bytes32 lh, address payee) = _resolve(label);
+        (bytes32 lh, address o, address payee) = _resolve(label);
         escrowId = nextEscrowId++;
         uint256 deadline = block.timestamp + ESCROW_TIMEOUT;
         escrows[escrowId] = Escrow({
             labelHash: lh,
             payer: msg.sender,
             payee: payee,
+            owner: o,
             amount: msg.value,
             deadline: deadline,
             released: false,
@@ -193,14 +219,14 @@ contract NamedPay {
         emit EscrowCreated(escrowId, lh, label, msg.sender, payee, msg.value, deadline);
     }
 
-    /// @notice The name owner confirms delivery; the escrowed BNB is released
-    /// to the payout address. Never blocked by a pause.
+    /// @notice The name owner (at escrow creation) confirms delivery; the
+    /// escrowed BNB is released to the payout address recorded at creation.
+    /// Never blocked by a pause.
     function confirmDelivery(uint256 escrowId) external nonReentrant {
         Escrow storage e = escrows[escrowId];
         if (e.payer == address(0)) revert EscrowNotFound(escrowId);
         if (e.released || e.refunded) revert AlreadySettled(escrowId);
-        address o = _ownerOfHash(e.labelHash);
-        if (o != msg.sender) revert NotNameOwnerForEscrow(escrowId, msg.sender);
+        if (e.owner != msg.sender) revert NotNameOwnerForEscrow(escrowId, msg.sender);
         e.released = true;
         (bool ok,) = e.payee.call{value: e.amount}("");
         if (!ok) revert PaymentFailed(e.payee);

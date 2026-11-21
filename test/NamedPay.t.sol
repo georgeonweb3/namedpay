@@ -137,7 +137,7 @@ contract NamedPayTest is Test {
         pay.confirmDelivery(id);
         assertEq(alicePayout.balance - before, 1 ether);
 
-        (,,,,, bool released, bool refunded) = pay.escrows(id);
+        (,,,,,, bool released, bool refunded) = pay.escrows(id);
         assertTrue(released);
         assertFalse(refunded);
     }
@@ -162,7 +162,7 @@ contract NamedPayTest is Test {
         pay.refund(id);
         assertEq(payer.balance - before, 2 ether);
 
-        (,,,,, bool released, bool refunded) = pay.escrows(id);
+        (,,,,,, bool released, bool refunded) = pay.escrows(id);
         assertFalse(released);
         assertTrue(refunded);
     }
@@ -193,7 +193,7 @@ contract NamedPayTest is Test {
         vm.prank(payer);
         uint256 id = pay.escrowByName{value: 1 ether}("alice");
 
-        (,,,, uint256 deadline,,) = pay.escrows(id);
+        (,,,,, uint256 deadline,,) = pay.escrows(id);
         vm.prank(stranger);
         vm.expectRevert(
             abi.encodeWithSelector(NamedPay.DeadlineNotReached.selector, id, deadline)
